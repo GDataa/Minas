@@ -28,7 +28,6 @@ public class MenuAdmin implements Listener {
     public void abrirMenu(Player player) {
         Inventory inv = Bukkit.createInventory(null, 54, TITULO_MENU);
 
-        // Carrega os blocos que já estão salvos na config
         if (plugin.getConfig().contains("minerios")) {
             for (String materialName : plugin.getConfig().getConfigurationSection("minerios").getKeys(false)) {
                 Material mat = Material.matchMaterial(materialName);
@@ -40,14 +39,14 @@ public class MenuAdmin implements Listener {
         }
 
         player.openInventory(inv);
-        player.sendMessage("§eAdicione blocos do seu inventário. \n§aEsquerdo: +1% \n§cDireito: -1% \n§4Shift: Remover");
+        player.sendMessage("§eAdicione blocos do seu inventário. \n§aEsquerdo: +5% \n§cDireito: -5% \n§4Shift: Remover");
     }
 
     @EventHandler
     public void onClick(InventoryClickEvent event) {
         if (!event.getView().getTitle().equals(TITULO_MENU)) return;
 
-        event.setCancelled(true); // Bloqueia pegar o item
+        event.setCancelled(true);
 
         Player player = (Player) event.getWhoClicked();
         ItemStack itemClicado = event.getCurrentItem();
@@ -55,32 +54,36 @@ public class MenuAdmin implements Listener {
 
         if (itemClicado == null || itemClicado.getType() == Material.AIR) return;
 
-        // Se clicou no inventário de baixo (do próprio jogador), adiciona ao menu com 1%
+        // Clicou no próprio inventário para adicionar um novo bloco
         if (event.getClickedInventory().equals(event.getView().getBottomInventory())) {
             if (!itemClicado.getType().isBlock()) {
                 player.sendMessage("§cApenas blocos podem ser adicionados!");
                 return;
             }
-            // Verifica se já tem no menu
+
             for (ItemStack item : inv.getContents()) {
                 if (item != null && item.getType() == itemClicado.getType()) return;
             }
-            inv.addItem(criarIcone(itemClicado.getType(), 1.0));
+
+            // Agora o bloco já entra com 5% em vez de 1%
+            inv.addItem(criarIcone(itemClicado.getType(), 5.0));
             player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f);
             return;
         }
 
-        // Se clicou no menu de cima (configurando as porcentagens)
+        // Clicou num bloco que já está no menu para alterar a porcentagem
         if (event.getClickedInventory().equals(inv)) {
             Material mat = itemClicado.getType();
             double chanceAtual = pegarChanceDoLore(itemClicado);
 
             if (event.getClick() == ClickType.LEFT) {
-                chanceAtual = Math.min(100.0, chanceAtual + 1.0); // Máximo 100%
+                // Aumenta 5%, limitando ao máximo de 100%
+                chanceAtual = Math.min(100.0, chanceAtual + 5.0);
             } else if (event.getClick() == ClickType.RIGHT) {
-                chanceAtual = Math.max(0.1, chanceAtual - 1.0); // Mínimo 0.1%
+                // Diminui 5%, limitando ao mínimo de 0% ou 1% para não bugar
+                chanceAtual = Math.max(1.0, chanceAtual - 5.0);
             } else if (event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT) {
-                event.getInventory().setItem(event.getSlot(), null); // Remove
+                event.getInventory().setItem(event.getSlot(), null);
                 player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_ANVIL_BREAK, 1f, 1f);
                 return;
             }
@@ -94,7 +97,6 @@ public class MenuAdmin implements Listener {
     public void onClose(InventoryCloseEvent event) {
         if (!event.getView().getTitle().equals(TITULO_MENU)) return;
 
-        // Limpa a config atual e salva o que está no menu
         plugin.getConfig().set("minerios", null);
 
         double total = 0.0;
@@ -115,8 +117,6 @@ public class MenuAdmin implements Listener {
         }
     }
 
-    // --- Utilitários Visuais ---
-
     private ItemStack criarIcone(Material material, double chance) {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
@@ -125,8 +125,9 @@ public class MenuAdmin implements Listener {
             List<String> lore = new ArrayList<>();
             lore.add("§7Chance atual: §b" + chance + "%");
             lore.add("");
-            lore.add("§a[Botão Esquerdo] +1%");
-            lore.add("§c[Botão Direito] -1%");
+            // Atualizado visualmente para refletir os 5%
+            lore.add("§a[Botão Esquerdo] +5%");
+            lore.add("§c[Botão Direito] -5%");
             lore.add("§4[Shift] Remover");
             meta.setLore(lore);
             item.setItemMeta(meta);
@@ -137,11 +138,16 @@ public class MenuAdmin implements Listener {
     private double pegarChanceDoLore(ItemStack item) {
         try {
             String linha = item.getItemMeta().getLore().get(0);
-            // Extrai apenas os números da lore "Chance atual: X%"
+
+            // 1. Remove os códigos de cor do Bukkit (§7, §b, etc) primeiro!
+            linha = org.bukkit.ChatColor.stripColor(linha);
+
+            // 2. Agora sim, extrai os números e os pontos em segurança
             String numero = linha.replaceAll("[^0-9.]", "");
+
             return Double.parseDouble(numero);
         } catch (Exception e) {
-            return 1.0;
+            return 5.0;
         }
     }
 }

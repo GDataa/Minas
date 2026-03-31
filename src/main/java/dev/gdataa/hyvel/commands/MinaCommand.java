@@ -8,6 +8,7 @@ import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.regions.Region;
 import dev.gdataa.hyvel.MinasMain;
 import dev.gdataa.hyvel.minas.manager.MenuAdmin;
+import dev.gdataa.hyvel.minas.manager.MinaGUI;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -18,19 +19,41 @@ public class MinaCommand implements CommandExecutor {
 
     private final MinasMain plugin;
     private final MenuAdmin menuAdmin;
+    private final MinaGUI minaGUI;
 
     public MinaCommand(MinasMain plugin) {
         this.plugin = plugin;
         this.menuAdmin = new MenuAdmin(plugin);
+        this.minaGUI = new MinaGUI();
+
+        // Regista os eventos de ambos os menus diretamente no construtor
         plugin.getServer().getPluginManager().registerEvents(this.menuAdmin, plugin);
+        plugin.getServer().getPluginManager().registerEvents(this.minaGUI, plugin);
     }
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String[] args) {
-        if (!(sender instanceof Player)) return true;
+        if (!(sender instanceof Player)) {
+            sender.sendMessage("§cApenas jogadores podem usar este comando.");
+            return true;
+        }
+
         Player player = (Player) sender;
 
-        if (args.length > 0 && args[0].equalsIgnoreCase("admin")) {
+        // Se o jogador digitar apenas "/mina" -> Abre o novo menu principal
+        if (args.length == 0) {
+            minaGUI.openMenu(player);
+            return true;
+        }
+
+        // Se o jogador digitar "/mina ir" -> Lógica de acessar à mina (Antigo /mina)
+        if (args[0].equalsIgnoreCase("ir")) {
+            plugin.getMinaManager().acessarMina(player);
+            return true;
+        }
+
+        // Se o jogador digitar "/mina admin" -> Mantemos a lógica original de Admin
+        if (args[0].equalsIgnoreCase("admin")) {
             if (!player.hasPermission("minas.admin")) {
                 player.sendMessage("§cSem permissão.");
                 return true;
@@ -46,7 +69,6 @@ public class MinaCommand implements CommandExecutor {
                     BlockVector3 max = selecao.getMaximumPoint();
 
                     // 2. Salva as coordenadas X, Y e Z da região na config
-                    // Correção: Nas novas APIs do WorldEdit, usamos x(), y() e z()
                     plugin.getConfig().set("regiao.minX", min.x());
                     plugin.getConfig().set("regiao.minY", min.y());
                     plugin.getConfig().set("regiao.minZ", min.z());
@@ -71,7 +93,8 @@ public class MinaCommand implements CommandExecutor {
             return true;
         }
 
-        plugin.getMinaManager().acessarMina(player);
+        // Mensagem de fallback caso digite argumentos inválidos
+        player.sendMessage("§cUso incorreto. Usa: /mina, /mina ir ou /mina admin");
         return true;
     }
 }
