@@ -1,0 +1,9 @@
+name: Minas
+version: '${project.version}'
+main: dev.gdataa.hyvel.MinasMain
+api-version: '1.21'
+depend: [WorldEdit] # Adicionamos o WorldEdit aqui!
+commands:
+  mina:
+    description: Vai para a sua mina pessoal instanciada.
+    aliases: [minas]
