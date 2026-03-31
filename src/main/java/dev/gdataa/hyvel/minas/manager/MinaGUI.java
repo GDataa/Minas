@@ -1,5 +1,7 @@
 package dev.gdataa.hyvel.minas.manager;
 
+import dev.gdataa.hyvel.MinasMain; // <-- Não te esqueças deste import!
+import dev.gdataa.hyvel.minas.model.Mina;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -20,6 +22,14 @@ import java.util.UUID;
 public class MinaGUI implements Listener {
 
     private static final String MENU_TITLE = "§8Mundo das Minas";
+
+    // 1. Adicionamos a referência ao teu plugin principal
+    private final MinasMain plugin;
+
+    // 2. Criamos o construtor para receber o plugin
+    public MinaGUI(MinasMain plugin) {
+        this.plugin = plugin;
+    }
 
     // Método que passaste para criar cabeças Custom (mantive intacto)
     public static ItemStack createCustomHead(String base64Value, String name, String... lore) {
@@ -54,48 +64,44 @@ public class MinaGUI implements Listener {
         // Criamos um inventário de 3 linhas (27 slots)
         Inventory inv = Bukkit.createInventory(null, 27, MENU_TITLE);
 
-        // 1. Skull do Player (Usamos a cabeça REAL do jogador para ser mais interativo)
+        // Agora o "plugin" já não dá erro e consegue ir buscar os dados!
+        Mina mina = plugin.getMinaManager().getMinasCache().get(player.getUniqueId());
+        int nivel = (mina != null) ? mina.getNivel() : 1;
+        int prestigio = (mina != null) ? mina.getPrestigio() : 0;
+        int blocos = (mina != null) ? mina.getBlocosQuebradosTotal() : 0;
+        int proxNivel = nivel * 100;
+
         ItemStack playerSkull = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta playerMeta = (SkullMeta) playerSkull.getItemMeta();
         if (playerMeta != null) {
             playerMeta.setOwningPlayer(player);
-            playerMeta.setDisplayName("§a§lSeu Perfil");
-            // AQUI: Substitui pelos valores reais da tua API/Database
+            playerMeta.setDisplayName("§a§lEstatísticas de " + player.getName());
             playerMeta.setLore(Arrays.asList(
-                    "§7Nível: §f10",
-                    "§7Blocos Partidos: §f1.540",
-                    "§7Prestígio: §fI"
+                    "§7Nível Atual: §f" + nivel + " §8(Max 100)",
+                    "§7Prestígio: §e" + prestigio,
+                    "",
+                    "§7Progresso: §f" + blocos + "§8/§f" + (nivel < 100 ? proxNivel : "MAX"),
+                    "§7Status: " + (nivel >= 100 ? "§6PRONTO PARA PRESTÍGIO" : "§aA minerar...")
             ));
             playerSkull.setItemMeta(playerMeta);
         }
 
         // 2. Botão: Mina Ir (Base64 de uma Seta Verde)
         String setaVerdeBase64 = "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2RjOWU0ZGNmYTQyMjFhMWZhZGMxYjViMmIxMWQ4YmVlYjU3ODc5YWYxYzQyMzYyMTQyYmFlMWVkZDUifX19";
-        ItemStack minaIr = createCustomHead(setaVerdeBase64, "§a§lMina Ir",
+        ItemStack minaIr = createCustomHead(setaVerdeBase64, "§aMina Ir",
                 "§7Clica aqui para seres",
                 "§7teletransportado para a tua mina.");
 
         // 3. Botão: Minas Públicas e Privadas (Base64 de um Globo)
         String globoBase64 = "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvM2RkNDhhMjI5Y2E3NjY0YmI1NGNlN2RhODZlYzU0ZDI4MjU4MzU1NzU0N2MxOWVkNmZhZjk1NjlkYzM5ZWZhMSJ9fX0=";
-        ItemStack minasList = createCustomHead(globoBase64, "§e§lMinas da Comunidade",
-                "§c§l[BREVEMENTE]",
+        ItemStack minasList = createCustomHead(globoBase64, "§eMinas da Comunidade",
                 "§7Explora minas públicas e",
                 "§7privadas de outros jogadores.");
 
-        // Vidros cinza para decoração do menu (opcional, mas fica bonito)
-        ItemStack filler = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
-        org.bukkit.inventory.meta.ItemMeta fillerMeta = filler.getItemMeta();
-        fillerMeta.setDisplayName(" "); // Nome vazio para não incomodar
-        filler.setItemMeta(fillerMeta);
-
-        for (int i = 0; i < inv.getSize(); i++) {
-            inv.setItem(i, filler);
-        }
-
         // Posicionar os itens nos slots corretos (11, 13 e 15 ficam centrados e bonitos)
-        inv.setItem(11, minaIr);
-        inv.setItem(13, playerSkull);
-        inv.setItem(15, minasList);
+        inv.setItem(15, minaIr);
+        inv.setItem(11, playerSkull);
+        inv.setItem(13, minasList);
 
         // Abrir inventário ao jogador
         player.openInventory(inv);
@@ -111,15 +117,15 @@ public class MinaGUI implements Listener {
             if (!(event.getWhoClicked() instanceof Player)) return;
             Player player = (Player) event.getWhoClicked();
 
-            // Clicou no slot 11 (Mina Ir)
-            if (event.getRawSlot() == 11) {
+            // Clicou no slot 15 (Mina Ir)
+            if (event.getRawSlot() == 15) {
                 player.closeInventory();
                 // Executa o comando ou coloca aqui a tua lógica direta de teleporte
                 player.performCommand("mina ir");
             }
 
-            // Clicou no slot 15 (Minas Público/Privado)
-            if (event.getRawSlot() == 15) {
+            // Clicou no slot 13 (Minas Público/Privado)
+            if (event.getRawSlot() == 13) {
                 player.sendMessage("§cEste sistema de minas públicas e privadas chega BREVEMENTE!");
                 player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 1f, 1f);
             }

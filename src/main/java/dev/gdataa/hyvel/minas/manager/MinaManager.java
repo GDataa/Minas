@@ -9,6 +9,7 @@ import dev.gdataa.hyvel.MinasMain;
 import dev.gdataa.hyvel.minas.model.Mina;
 import org.bukkit.Bukkit;
 import org.bukkit.Difficulty;
+import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 
@@ -37,6 +38,7 @@ public class MinaManager {
 
     public void acessarMina(Player player) {
         UUID uuid = player.getUniqueId();
+        // Se não está no cache, o servidor reiniciou ou o player acabou de entrar
         Mina mina = minasCache.computeIfAbsent(uuid, k -> new Mina(uuid));
 
         if (mina.getBukkitWorld() != null) {
@@ -51,15 +53,17 @@ public class MinaManager {
             try {
                 SlimePropertyMap props = new SlimePropertyMap();
                 props.setValue(SlimeProperties.DIFFICULTY, "normal");
-                props.setValue(SlimeProperties.PVP, false);
 
                 SlimeWorld mundoMina;
 
-                // Usa o NOSSO customLoader (pasta do plugin) para checar e ler
-                if (customLoader.worldExists(mina.getNomeMundo())) {
+                // Verificamos se o mundo já existe no disco
+                boolean mundoExisteNoDisco = customLoader.worldExists(mina.getNomeMundo());
+
+                if (mundoExisteNoDisco) {
+                    // Carrega o mundo existente
                     mundoMina = asp.readWorld(customLoader, mina.getNomeMundo(), false, props);
                 } else {
-                    // Importante: O mapa base "Mina.slime" deve estar dentro da pasta plugins/Minas/mundos/
+                    // Se não existe, clona do mapa base
                     SlimeWorld template = asp.readWorld(customLoader, NOME_MAPA_BASE, true, props);
                     mundoMina = template.clone(mina.getNomeMundo(), customLoader);
                 }
@@ -77,11 +81,18 @@ public class MinaManager {
 
                     World bukkitWorld = mina.getBukkitWorld();
                     if (bukkitWorld != null) {
-                        bukkitWorld.setAutoSave(true);
+                        bukkitWorld.setAutoSave(false);
                         bukkitWorld.setDifficulty(Difficulty.NORMAL);
 
+                        /* * LÓGICA DE REGENERAÇÃO:
+                         * Se o mundo acabou de ser carregado do disco (pós-restart)
+                         * ou se acabou de ser criado, precisamos de preencher os minérios.
+                         * Mundos Slime raramente guardam blocos colocados via API se não forçado.
+                         */
+                        preencherMina(mina);
+
                         player.teleport(mina.getSpawnLocation());
-                        player.sendMessage("§aMina carregada com sucesso!");
+                        player.sendMessage("§aMina carregada e preparada com sucesso!");
                     }
                 });
 
@@ -113,5 +124,85 @@ public class MinaManager {
                 mina.setSlimeWorld(null);
             }
         }, 20L);
+    }
+
+    // Método que preenche a mina com os blocos sorteados
+    public void preencherMina(Mina mina) {
+        World world = mina.getBukkitWorld();
+        if (world == null) return;
+
+        // Verifica se o Admin já configurou a região e os minérios
+        if (!plugin.getConfig().contains("regiao.minX") || !plugin.getConfig().contains("minerios")) {
+            plugin.getLogger().warning("A mina " + mina.getNomeMundo() + " não foi preenchida porque as coordenadas ou minérios não foram configurados no /mina admin criar!");
+            return;
+        }
+
+        // Pega as coordenadas da caixa do WorldEdit salvas na config
+        int minX = plugin.getConfig().getInt("regiao.minX");
+        int minY = plugin.getConfig().getInt("regiao.minY");
+        int minZ = plugin.getConfig().getInt("regiao.minZ");
+        int maxX = plugin.getConfig().getInt("regiao.maxX");
+        int maxY = plugin.getConfig().getInt("regiao.maxY");
+        int maxZ = plugin.getConfig().getInt("regiao.maxZ");
+
+        // Prepara a "roleta" com os pesos (porcentagens)
+        Map<Material, Double> minerios = new HashMap<>();
+        double totalPeso = 0.0;
+        for (String key : plugin.getConfig().getConfigurationSection("minerios").getKeys(false)) {
+            Material mat = Material.matchMaterial(key);
+            if (mat != null) {
+                double chance = plugin.getConfig().getDouble("minerios." + key);
+                minerios.put(mat, chance);
+                totalPeso += chance;
+            }
+        }
+
+        if (minerios.isEmpty()) return;
+
+        int totalBlocos = 0; // Contador de blocos da mina
+
+        // Percorre cada bloco dentro da caixa selecionada e coloca um minério sorteado
+        for (int x = Math.min(minX, maxX); x <= Math.max(minX, maxX); x++) {
+            for (int y = Math.min(minY, maxY); y <= Math.max(minY, maxY); y++) {
+                for (int z = Math.min(minZ, maxZ); z <= Math.max(minZ, maxZ); z++) {
+                    Material sorteado = sortearMinerio(minerios, totalPeso);
+                    // O 'false' no final evita atualizações de física (ex: areia caindo), o que reduz muito o lag
+                    world.getBlockAt(x, y, z).setType(sorteado, false);
+                    totalBlocos++; // Incrementa o contador
+                }
+            }
+        }
+
+        // Atualiza a contagem na instância da mina
+        mina.setBlocosTotais(totalBlocos);
+        mina.resetarContagem();
+    }
+
+    // A matemática da roleta que decide qual bloco colocar
+    private Material sortearMinerio(Map<Material, Double> minerios, double totalPeso) {
+        double random = Math.random() * totalPeso;
+        double atual = 0.0;
+        for (Map.Entry<Material, Double> entry : minerios.entrySet()) {
+            atual += entry.getValue();
+            if (random <= atual) {
+                return entry.getKey();
+            }
+        }
+        return Material.STONE; // Bloco padrão caso algo dê muito errado
+    }
+
+    // --- NOVOS MÉTODOS ADICIONADOS ---
+
+    // Método para resetar a mina e teleportar o jogador em segurança
+    public void resetarMina(Mina mina, Player player) {
+        player.sendMessage("§eA tua mina está a ser reabastecida!");
+        player.teleport(mina.getSpawnLocation()); // Tira o jogador do meio dos blocos
+        preencherMina(mina);
+        player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_ANVIL_USE, 1f, 1f);
+    }
+
+    // Getter para aceder ao cache a partir do Listener
+    public Map<UUID, Mina> getMinasCache() {
+        return minasCache;
     }
 }

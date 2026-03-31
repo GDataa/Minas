@@ -4,6 +4,7 @@ import com.infernalsuite.asp.api.AdvancedSlimePaperAPI;
 import com.infernalsuite.asp.api.loaders.SlimeLoader;
 import com.infernalsuite.asp.loaders.file.FileLoader;
 import dev.gdataa.hyvel.commands.MinaCommand;
+import dev.gdataa.hyvel.commands.PrestigioCommand;
 import dev.gdataa.hyvel.minas.listener.ConexaoListener;
 import dev.gdataa.hyvel.minas.manager.MinaManager;
 import org.bukkit.Bukkit;
@@ -22,7 +23,7 @@ public final class MinasMain extends JavaPlugin {
 
         saveDefaultConfig();
 
-        // Verifica se a API do ASP está rodando
+        // Verifica se a API do ASP está a rodar
         try {
             AdvancedSlimePaperAPI.instance();
         } catch (NoClassDefFoundError e) {
@@ -38,8 +39,13 @@ public final class MinasMain extends JavaPlugin {
         // 2. Inicia o gerenciador e passa o nosso loader
         this.minaManager = new MinaManager(this, this.loaderCustomizado);
 
+        // 3. Registar eventos independentes (como o de entrar/sair do servidor)
         getServer().getPluginManager().registerEvents(new ConexaoListener(this), this);
+
+        // 4. Registar o Comando Principal
+        // NOTA: O MinaCommand já instancia e regista os eventos da MinaGUI e MenuAdmin lá dentro!
         getCommand("mina").setExecutor(new MinaCommand(this));
+        getCommand("prestigio").setExecutor(new PrestigioCommand(this));
 
         getLogger().info("Plugin ativado: Salvando minas em pasta customizada!");
     }
