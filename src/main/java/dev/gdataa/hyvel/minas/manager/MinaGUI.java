@@ -75,7 +75,7 @@ public class MinaGUI implements Listener {
         SkullMeta playerMeta = (SkullMeta) playerSkull.getItemMeta();
         if (playerMeta != null) {
             playerMeta.setOwningPlayer(player);
-            playerMeta.setDisplayName("§a§lEstatísticas de " + player.getName());
+            playerMeta.setDisplayName("§aEstatísticas de " + player.getName());
             playerMeta.setLore(Arrays.asList(
                     "§7Nível Atual: §f" + nivel + " §8(Max 100)",
                     "§7Prestígio: §e" + prestigio,

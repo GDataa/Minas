@@ -1,0 +1,55 @@
+# ==========================================
+# Configuração da Base de Dados
+# ==========================================
+# Tipo suportado: 'sqlite' (local) ou 'mysql' (rede)
+database:
+  tipo: 'sqlite'
+  host: 'localhost'
+  porta: 3306
+  banco: 'hyvel_minas'
+  usuario: 'root'
+  senha: ''
+
+# ==========================================
+# Configuração da Área Base da Mina
+# ==========================================
+# Estas coordenadas são atualizadas automaticamente
+# quando usas o comando /mina admin criar
+regiao:
+  minX: -36
+  minY: 34
+  minZ: -80
+  maxX: 36
+  maxY: 61
+  maxZ: -8
+
+# ==========================================
+# Configuração de Progressão (Níveis)
+# ==========================================
+# O número indica a partir de qual nível essa tabela é usada.
+# Garante que a soma das percentagens dos minérios dá sempre 100.0!
+progresso:
+  '1': # Nível 1 ao 10
+    minerios:
+      STONE: 80.0
+      COAL_ORE: 20.0
+    precos:
+      STONE: 0.10
+      COAL_ORE: 0.50
+  '11': # Nível 11 ao 20
+    minerios:
+      STONE: 60.0
+      COAL_ORE: 30.0
+      IRON_ORE: 10.0
+    precos:
+      STONE: 0.15
+      COAL_ORE: 0.60
+      IRON_ORE: 2.00
+  '21': # Nível 21 ao 30
+    minerios:
+      STONE: 40.0
+      IRON_ORE: 50.0
+      GOLD_ORE: 10.0
+    precos:
+      IRON_ORE: 2.50
+      GOLD_ORE: 5.00

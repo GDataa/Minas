@@ -3,7 +3,10 @@ package dev.gdataa.hyvel.minas.model;
 import com.infernalsuite.asp.api.world.SlimeWorld;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Sound;
 import org.bukkit.World;
+import org.bukkit.entity.Player;
+
 import java.util.UUID;
 
 public class Mina {
@@ -14,10 +17,13 @@ public class Mina {
     private int nivel = 1;
     private int prestigio = 0;
     private int blocosQuebradosTotal = 0;
+    private int tokens = 0; // <-- NOVA VARIÁVEL
 
     // Variáveis de controlo da mina (reset)
     private int blocosTotais = 0;
     private int blocosQuebradosNaSessao = 0;
+
+    private String picaretaBase64 = null;
 
     public Mina(UUID owner) {
         this.owner = owner;
@@ -35,19 +41,22 @@ public class Mina {
     private void checkLevelUp() {
         if (nivel >= 100) return; // Bloqueia no 100 até dar prestígio
 
-        // Exemplo simples: cada nível pede (nível atual * 100) blocos
-        // Nível 1 -> 2: 100 blocos | Nível 2 -> 3: 200 blocos...
-        int blocosNecessarios = nivel * 100;
+        // O cálculo é acumulativo: Nível 1 precisa de 700 total, Nível 2 precisa de 1400...
+        int blocosNecessarios = nivel * 700;
 
-        // Se quiseres algo fixo: if (blocosQuebradosTotal >= 500) ...
         if (blocosQuebradosTotal >= blocosNecessarios) {
-            nivel++;
-            blocosQuebradosTotal = 0; // Reinicia o progresso para o próximo nível
+            int nivelAntigo = nivel; // Guarda o nível antigo antes de subir
+            nivel++; // Sobe o nível
 
             if (Bukkit.getPlayer(owner) != null) {
-                Bukkit.getPlayer(owner).sendMessage("§a§lUP! §7Subiste para o nível §f" + nivel + "§7!");
+                Player p = Bukkit.getPlayer(owner);
+
+                // Formato: UP! | 1 -> 2
+                p.sendTitle("§a§l🆙", "§7§m" + nivelAntigo + "§f ➡ §a" + nivel, 10, 50, 15);
+                p.playSound(p.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
+
                 if (nivel == 100) {
-                    Bukkit.getPlayer(owner).sendMessage("§e§lAVISO: §7Chegaste ao nível máximo! Usa §6/prestigio §7para evoluir.");
+                    p.sendMessage("§e§lAVISO: §7Chegaste ao nível máximo! Usa §6/prestigio §7para evoluir.");
                 }
             }
         }
@@ -64,10 +73,13 @@ public class Mina {
     public int getBlocosQuebradosTotal() { return blocosQuebradosTotal; }
     public void setBlocosQuebradosTotal(int blocos) { this.blocosQuebradosTotal = blocos; }
 
-    // (Mantém os outros métodos que já tínhamos: getBukkitWorld, getNomeMundo, etc)
+    public int getTokens() { return tokens; }
+    public void setTokens(int tokens) { this.tokens = tokens; }
+    public void adicionarTokens(int quantidade) { this.tokens += quantidade; }
+
     public String getNomeMundo() { return "mina_" + owner.toString(); }
     public World getBukkitWorld() { return Bukkit.getWorld(getNomeMundo()); }
-    public Location getSpawnLocation() { return new Location(getBukkitWorld(), 0.5, 65, 0.5); }
+    public Location getSpawnLocation() { return new Location(getBukkitWorld(), 0.5, 65, 0.5, 180f, 0f); }
 
     public void setSlimeWorld(SlimeWorld sw) { this.slimeWorld = sw; }
     public void setBlocosTotais(int t) { this.blocosTotais = t; }
@@ -76,4 +88,11 @@ public class Mina {
         if (blocosTotais == 0) return 0;
         return ((double) blocosQuebradosNaSessao / blocosTotais) * 100;
     }
+
+    public UUID getDono() {
+        return this.owner;
+    }
+
+    public String getPicaretaBase64() { return picaretaBase64; }
+    public void setPicaretaBase64(String base64) { this.picaretaBase64 = base64; }
 }
