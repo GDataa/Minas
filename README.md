@@ -71,7 +71,7 @@ The following areas can be used to track future development:
 
 ## 📄 License
 
-No license has been specified in this README. Please check the repository's licensing terms before redistributing or reusing the source code.
+MIT License.
 
 ---
 
